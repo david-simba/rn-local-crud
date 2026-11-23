@@ -1,0 +1,200 @@
+Directory structure:
+└── src/
+    └── features/
+        └── products/
+            ├── data/
+            │   └── productRepositoryImpl.ts
+            ├── domain/
+            │   ├── product.ts
+            │   └── productRepository.ts
+            └── ui/
+                ├── ProductPage.tsx
+                ├── components/
+                │   └── ProductForm.tsx
+                └── hooks/
+                    └── useProducts.ts
+
+================================================
+FILE: features/products/data/productRepositoryImpl.ts
+================================================
+import { Product } from "../domain/product"
+import { ProductRepository } from "../domain/productRepository"
+
+export class ProductRepositoryImpl implements ProductRepository {
+  products: Product[] = [
+    { id: 1, name: "Product 1", price: 100 },
+    { id: 2, name: "Product 2", price: 200 }
+  ]
+
+  getProducts(): Product[] {
+    return this.products
+  }
+
+  createProduct(product: Product): void {
+    this.products.push(product)
+  }
+
+  updateProduct(product: Product): void {
+    this.products = this.products.map(current => 
+      current.id === product.id ? product : current
+    )
+  }
+  
+  deleteProduct(productId: number): void {
+    this.products = this.products.filter(currente => 
+      currente.id !== productId
+    )
+  }
+}
+
+
+================================================
+FILE: features/products/domain/product.ts
+================================================
+export interface Product {
+  id: number
+  name: string
+  price: number
+}
+
+
+================================================
+FILE: features/products/domain/productRepository.ts
+================================================
+import { Product } from "./product"
+
+export interface ProductRepository {
+  getProducts(): Product[]
+  createProduct(product: Product): void
+  updateProduct(product: Product): void
+  deleteProduct(productId: number): void
+}
+
+
+================================================
+FILE: features/products/ui/ProductPage.tsx
+================================================
+import { View, Text, Button } from "react-native"
+import { useProducts } from "./hooks/useProducts"
+import { ProductForm } from "./components/ProductForm"
+
+export const ProductPage = () => {
+  const { products, createProduct, updateProduct, deleteProduct } = useProducts()
+
+  return (
+    <View>
+      <ProductForm onCreateProduct={createProduct}/>
+      <Text>Product Page</Text>
+      {products.map(product => (
+        <View key={product.id}>
+          <Text>Name: {product.name}</Text>
+          <Text>Price: {product.price}</Text>
+          <Button
+            title="Delete"
+            onPress={() => deleteProduct(product.id)}
+          />
+        </View>
+      ))}
+    </View>
+  )
+}
+
+
+================================================
+FILE: features/products/ui/components/ProductForm.tsx
+================================================
+import { View } from "react-native"
+import { useState } from "react"
+import { Product } from "../../domain/product"
+
+interface ProductFormProps {
+  onCreateProduct: (product: Product) => void
+}
+
+export const ProductForm = ({ onCreateProduct }: ProductFormProps) => {
+  const [name, setName] = useState("")
+  const [price, setPrice] = useState(0)
+
+  const onSubmit: React.SubmitEventHandler<HTMLFormElement> = (e) => {
+    e.preventDefault()
+
+    const product: Product = {
+      id: Date.now(),
+      name: name,
+      price: price
+    }
+    
+    setName("")
+    setPrice(0)
+    
+    onCreateProduct(product)
+  }
+
+  return (
+    <View>
+      <form onSubmit={onSubmit}>
+        <input
+          placeholder="Name"
+          value={name}
+          onChange={(e)=>setName(e.target.value)}
+          />
+        <input
+          placeholder="Price"
+          value={price}
+          onChange={(e)=>setPrice(Number(e.target.value))}
+          />
+        <button type="submit">Add Product</button>
+      </form>
+    </View>
+  )
+}
+
+
+================================================
+FILE: features/products/ui/hooks/useProducts.ts
+================================================
+import { useState, useEffect, use } from "react";
+import { Product } from "../../domain/product";
+import { ProductRepositoryImpl } from "../../data/productRepositoryImpl";
+
+const respository = new ProductRepositoryImpl()
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  const getProducts = () => {
+    const products = respository.getProducts()
+    setProducts(products)
+  }
+
+  const createProduct = (product: Product) => {
+    respository.createProduct(product)
+    setProducts((prev) => [...prev, product])
+  }
+
+  const updateProduct = (product: Product) => {
+    respository.updateProduct(product)
+    setProducts((prev) => prev.map((
+      current => current.id === product.id ? product : current
+    )))
+  }
+
+  const deleteProduct = (productId: number) => {
+    respository.deleteProduct(productId)
+    setProducts((prev) => prev.filter(
+      current => current.id !== productId
+    ))
+  }
+
+  useEffect(() => {
+    getProducts()
+  }, [])
+
+  return {
+    products,
+    createProduct,
+    updateProduct,
+    deleteProduct
+  }
+}
+
